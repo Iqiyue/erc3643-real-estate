@@ -1,0 +1,8 @@
+out/
+cache/
+.idea/
+.DS_Store
+*.md
+*.txt
+lib/
+docs/
