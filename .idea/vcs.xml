@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../erc3643-real-estate_backup/lib/openzeppelin-contracts" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../erc3643-real-estate_backup/lib/openzeppelin-contracts-upgradeable" vcs="Git" />
+  </component>
+</project>
