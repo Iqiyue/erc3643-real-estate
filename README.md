@@ -15,17 +15,27 @@
 ## 已实现的合约
 
 ### 1. 身份系统 (src/identity/)
-- Identity.sol - 投资者身份合约
-- ClaimIssuer.sol - KYC 服务商
-- IdentityRegistryStorage.sol - 身份数据存储
-- IdentityRegistry.sol - 身份注册表
+- **Identity.sol** - 投资者身份合约 (基于 ERC-734/735)
+- **ClaimIssuer.sol** - KYC/AML 声明签发者
+- **IdentityRegistryStorage.sol** - 身份数据存储层
+- **IdentityRegistry.sol** - 身份注册表与验证协调器
 
 ### 2. 合规系统 (src/compliance/)
-- ComplianceModule.sol - 合规模块基类
-- ModularCompliance.sol - 合规协调器
+- **ComplianceModule.sol** - 合规模块抽象基类
+- **ModularCompliance.sol** - 模块化合规协调器
+- **CountryRestrictModule.sol** - 国家/地区限制模块
+- **TransferRestrictModule.sol** - 转账限制模块
+- **InvestorLimitsModule.sol** - 投资者数量与持仓限制模块
 
 ### 3. 代币系统 (src/token/)
-- RealEstateToken.sol - 证券代币核心合约 (ERC20 + 合规校验 + 受监管强制转移/地址恢复)
+- **RealEstateToken.sol** - 证券代币核心合约 (ERC20 + 合规校验 + 强制转移/地址恢复)
+
+### 4. 治理系统 (src/governance/)
+- **TokenGovernance.sol** - 多签治理合约 (3/5 多签机制)
+
+### 5. 分红系统 (src/distribution/)
+- **RealEstateDividendDistributor.sol** - 房产收益分红分配器
+- **MerkleTreeDividendDistributor.sol** - 基于 Merkle Tree 的分红分配器
 
 ## 快速开始
 
