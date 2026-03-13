@@ -36,11 +36,6 @@ contract ClaimIssuer is Ownable, EIP712 {
         return _hashClaim(_identity, _topic, _data, _expiresAt, _nonce);
     }
 
-    function getSignedClaim(address _identity, uint256 _topic, bytes memory _data) public view returns (bytes32) {
-        // Backward-compatible helper (legacy tests/flows).
-        return _hashClaim(_identity, _topic, _data, 0, 0);
-    }
-
     function getClaimId(
         address _identity,
         uint256 _topic,
@@ -50,10 +45,6 @@ contract ClaimIssuer is Ownable, EIP712 {
     ) public pure returns (bytes32) {
         // forge-lint: disable-next-line(asm-keccak256)
         return keccak256(abi.encodePacked(_identity, _topic, keccak256(_data), _expiresAt, _nonce));
-    }
-
-    function getClaimId(address _identity, uint256 _topic, bytes memory _data) public pure returns (bytes32) {
-        return getClaimId(_identity, _topic, _data, 0, 0);
     }
 
     function isClaimValid(
@@ -72,21 +63,6 @@ contract ClaimIssuer is Ownable, EIP712 {
         return signer == owner() && !revokedClaims[claimId];
     }
 
-    function isClaimValid(address _identity, uint256 _topic, bytes memory _data, bytes memory _signature) public view returns (bool) {
-        return isClaimValid(_identity, _topic, _data, _signature, 0, 0);
-    }
-
-    function revokeClaim(bytes32 _claimId) public onlyOwner {
-        revokedClaims[_claimId] = true;
-        emit ClaimRevoked(_claimId, address(0), 0);
-    }
-
-    function revokeClaim(address _identity, uint256 _topic, bytes memory _data) public onlyOwner {
-        bytes32 claimId = getClaimId(_identity, _topic, _data, 0, 0);
-        revokedClaims[claimId] = true;
-        emit ClaimRevoked(claimId, _identity, _topic);
-    }
-
     function revokeClaim(
         address _identity,
         uint256 _topic,
@@ -97,17 +73,6 @@ contract ClaimIssuer is Ownable, EIP712 {
         bytes32 claimId = getClaimId(_identity, _topic, _data, _expiresAt, _nonce);
         revokedClaims[claimId] = true;
         emit ClaimRevoked(claimId, _identity, _topic);
-    }
-
-    function restoreClaim(bytes32 _claimId) public onlyOwner {
-        revokedClaims[_claimId] = false;
-        emit ClaimRestored(_claimId, address(0), 0);
-    }
-
-    function restoreClaim(address _identity, uint256 _topic, bytes memory _data) public onlyOwner {
-        bytes32 claimId = getClaimId(_identity, _topic, _data, 0, 0);
-        revokedClaims[claimId] = false;
-        emit ClaimRestored(claimId, _identity, _topic);
     }
 
     function restoreClaim(
@@ -145,22 +110,17 @@ contract ClaimIssuer is Ownable, EIP712 {
         uint256 _expiresAt,
         uint256 _nonce
     ) internal view returns (bytes32) {
-        bytes32 dataHash;
-        assembly {
-            dataHash := keccak256(add(_data, 0x20), mload(_data))
-        }
-        bytes32 claimTypeHash = CLAIM_TYPEHASH;
-        bytes32 structHash;
-        assembly {
-            let ptr := mload(0x40)
-            mstore(ptr, claimTypeHash)
-            mstore(add(ptr, 0x20), _identity)
-            mstore(add(ptr, 0x40), _topic)
-            mstore(add(ptr, 0x60), dataHash)
-            mstore(add(ptr, 0x80), _expiresAt)
-            mstore(add(ptr, 0xa0), _nonce)
-            structHash := keccak256(ptr, 0xc0)
-        }
+        bytes32 dataHash = keccak256(_data);
+        bytes32 structHash = keccak256(
+            abi.encode(
+                CLAIM_TYPEHASH,
+                _identity,
+                _topic,
+                dataHash,
+                _expiresAt,
+                _nonce
+            )
+        );
         return _hashTypedDataV4(structHash);
     }
 }

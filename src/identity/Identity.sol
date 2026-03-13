@@ -54,27 +54,6 @@ contract Identity {
         bytes memory _signature,
         bytes memory _data,
         string memory _uri,
-        uint256 _expiresAt
-    ) public onlyOwner returns (bytes32 claimId) {
-        return addClaim(
-            _topic,
-            _scheme,
-            _issuer,
-            _signature,
-            _data,
-            _uri,
-            _expiresAt,
-            0
-        );
-    }
-
-    function addClaim(
-        uint256 _topic,
-        uint256 _scheme,
-        address _issuer,
-        bytes memory _signature,
-        bytes memory _data,
-        string memory _uri,
         uint256 _expiresAt,
         uint256 _nonce
     ) public onlyOwner returns (bytes32 claimId) {
@@ -142,14 +121,6 @@ contract Identity {
         emit ClaimRemoved(_claimId, claim.topic, claim.scheme, claim.issuer);
         delete claims[_claimId];
         return true;
-    }
-
-    function getClaim(bytes32 _claimId) public view returns (
-        uint256 topic, uint256 scheme, address issuer, bytes memory signature,
-        bytes memory data, string memory uri, uint256 issuedAt, uint256 expiresAt
-    ) {
-        Claim memory claim = claims[_claimId];
-        return (claim.topic, claim.scheme, claim.issuer, claim.signature, claim.data, claim.uri, claim.issuedAt, claim.expiresAt);
     }
 
     function getClaimWithNonce(bytes32 _claimId) public view returns (

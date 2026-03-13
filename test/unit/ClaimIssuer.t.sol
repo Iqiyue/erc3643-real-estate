@@ -31,18 +31,21 @@ contract ClaimIssuerTest is Test {
 
         bytes memory data1 = abi.encodePacked("KYC_VERIFIED_INVESTOR_1");
         bytes memory data2 = abi.encodePacked("KYC_VERIFIED_INVESTOR_2");
+        uint256 expiresAt = block.timestamp + 365 days;
+        uint256 nonce1 = 1;
+        uint256 nonce2 = 2;
 
-        bytes memory sig1 = _sign(identity1, 1, data1);
-        bytes memory sig2 = _sign(identity2, 1, data2);
+        bytes memory sig1 = _sign(identity1, 1, data1, expiresAt, nonce1);
+        bytes memory sig2 = _sign(identity2, 1, data2, expiresAt, nonce2);
 
-        assertTrue(claimIssuer.isClaimValid(address(identity1), 1, data1, sig1));
-        assertTrue(claimIssuer.isClaimValid(address(identity2), 1, data2, sig2));
+        assertTrue(claimIssuer.isClaimValid(address(identity1), 1, data1, sig1, expiresAt, nonce1));
+        assertTrue(claimIssuer.isClaimValid(address(identity2), 1, data2, sig2, expiresAt, nonce2));
 
         vm.prank(issuerOwner);
-        claimIssuer.revokeClaim(address(identity1), 1, data1);
+        claimIssuer.revokeClaim(address(identity1), 1, data1, expiresAt, nonce1);
 
-        assertFalse(claimIssuer.isClaimValid(address(identity1), 1, data1, sig1));
-        assertTrue(claimIssuer.isClaimValid(address(identity2), 1, data2, sig2));
+        assertFalse(claimIssuer.isClaimValid(address(identity1), 1, data1, sig1, expiresAt, nonce1));
+        assertTrue(claimIssuer.isClaimValid(address(identity2), 1, data2, sig2, expiresAt, nonce2));
     }
 
     function testRestoreRevokedClaim() public {
@@ -67,13 +70,17 @@ contract ClaimIssuerTest is Test {
         // Expiry enforcement is performed by IdentityRegistry.
         Identity identity = new Identity(investor1);
         bytes memory data = abi.encodePacked("KYC_EXPIRED");
-        bytes memory sig = _sign(identity, 1, data);
+        uint256 expiresAt = block.timestamp + 365 days;
+        uint256 nonce = 3;
+        bytes memory sig = _sign(identity, 1, data, expiresAt, nonce);
 
-        assertTrue(claimIssuer.isClaimValid(address(identity), 1, data, sig));
+        assertTrue(claimIssuer.isClaimValid(address(identity), 1, data, sig, expiresAt, nonce));
     }
 
     function _sign(Identity identity, uint256 topic, bytes memory data) internal view returns (bytes memory) {
-        bytes32 messageHash = claimIssuer.getSignedClaim(address(identity), topic, data);
+        uint256 expiresAt = block.timestamp + 365 days;
+        uint256 nonce = 0;
+        bytes32 messageHash = claimIssuer.getSignedClaim(address(identity), topic, data, expiresAt, nonce);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(issuerPrivateKey, messageHash);
         return abi.encodePacked(r, s, v);
     }
