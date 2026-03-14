@@ -77,8 +77,7 @@ contract ComplianceModulesTest is Test {
             3000,      // 单人最多持有30%
             100 ether  // 最小投资100代币
         );
-
-        transferRestrictModule = new TransferRestrictModule(
+         transferRestrictModule = new TransferRestrictModule(
             30 days  // 30天锁定期
         );
 

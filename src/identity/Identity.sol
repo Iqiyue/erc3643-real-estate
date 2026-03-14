@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+// forge-lint: disable-next-line(unaliased-plain-import)
+import "./ClaimIssuer.sol";
+
 /**
  * @title Identity
  * @dev 实现 ERC-734 和 ERC-735 标准的链上身份合约
@@ -60,7 +63,8 @@ contract Identity {
         // HIGH-2 修复: 验证签发者是否受信任
         require(trustedIssuers[_issuer], "Identity: issuer not trusted");
 
-        claimId = keccak256(abi.encodePacked(_issuer, _topic));
+        // Use the same identity-scoped claim id semantics as ClaimIssuer.
+        claimId = ClaimIssuer(_issuer).getClaimId(address(this), _topic, _data, _expiresAt, _nonce);
 
         // DoS 防护: 检查是否是新 claim
         bool isNewClaim = claims[claimId].issuer == address(0);
@@ -70,11 +74,14 @@ contract Identity {
             require(claimCountByTopic[_topic] < MAX_CLAIMS_PER_TOPIC, "Identity: too many claims for this topic");
         }
 
-        require(claims[claimId].issuer == address(0) || claims[claimId].issuer == _issuer, "Identity: claim exists");
+        require(claims[claimId].issuer == address(0), "Identity: claim exists");
 
-        // HIGH-2 修复: 验证签名 (基础验证,实际应用中需要更复杂的签名验证)
-        // 注意: 这里简化了签名验证,生产环境需要完整的 ECDSA 验证
-        require(_signature.length > 0, "Identity: invalid signature");
+        // Strict validation: the trusted issuer must recognize the claim as valid
+        // for this identity before it can be stored.
+        require(
+            ClaimIssuer(_issuer).isClaimValid(address(this), _topic, _data, _signature, _expiresAt, _nonce),
+            "Identity: invalid signature"
+        );
 
         claims[claimId] = Claim({
             topic: _topic,

@@ -484,7 +484,7 @@ contract DoSAttackTest is Test {
         Identity identity = new Identity(investor);
 
         // 创建多个 claim issuers 以测试 claims 数量限制
-        // 因为 claimId = keccak256(issuer, topic),相同 issuer 和 topic 会覆盖
+        // 当前 claimId 包含 issuer/topic/data/expiresAt/nonce,不同 claim 会独立计数
         ClaimIssuer[] memory issuers = new ClaimIssuer[](11);
         for (uint256 i = 0; i < 11; i++) {
             vm.prank(makeAddr(string(abi.encodePacked("issuerOwner", i))));
