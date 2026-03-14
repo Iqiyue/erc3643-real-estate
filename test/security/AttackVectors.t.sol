@@ -115,7 +115,7 @@ contract ReentrancyAttackTest is Test {
         Identity identity = new Identity(investor);
 
         vm.prank(investor);
-        identity.addTrustedIssuer(address(claimIssuer));
+        identity.authorizeClaimIssuer(address(claimIssuer));
 
         bytes memory data = abi.encodePacked("KYC_VERIFIED");
         uint256 expiresAt = block.timestamp + 365 days;
@@ -356,7 +356,7 @@ contract FrontRunningAttackTest is Test {
         Identity identity = new Identity(investor1);
 
         vm.prank(investor1);
-        identity.addTrustedIssuer(address(claimIssuer));
+        identity.authorizeClaimIssuer(address(claimIssuer));
 
         bytes memory data = abi.encodePacked("KYC_VERIFIED");
         uint256 expiresAt = block.timestamp + 365 days;
@@ -382,7 +382,7 @@ contract FrontRunningAttackTest is Test {
         Identity identity = new Identity(investor);
 
         vm.prank(investor);
-        identity.addTrustedIssuer(address(claimIssuer));
+        identity.authorizeClaimIssuer(address(claimIssuer));
 
         bytes memory data = abi.encodePacked("KYC_VERIFIED");
         uint256 expiresAt = block.timestamp + 365 days;
@@ -487,11 +487,13 @@ contract DoSAttackTest is Test {
         // 当前 claimId 包含 issuer/topic/data/expiresAt/nonce,不同 claim 会独立计数
         ClaimIssuer[] memory issuers = new ClaimIssuer[](11);
         for (uint256 i = 0; i < 11; i++) {
-            vm.prank(makeAddr(string(abi.encodePacked("issuerOwner", i))));
+            uint256 issuerPrivKey = i + 100;
+            address claimIssuerOwner = vm.addr(issuerPrivKey);
+            vm.prank(claimIssuerOwner);
             issuers[i] = new ClaimIssuer();
 
             vm.prank(investor);
-            identity.addTrustedIssuer(address(issuers[i]));
+            identity.authorizeClaimIssuer(address(issuers[i]));
         }
 
         // 尝试添加 11 个不同 issuer 的 claims (相同 topic)
@@ -500,16 +502,10 @@ contract DoSAttackTest is Test {
             uint256 expiresAt = block.timestamp + 365 days;
             uint256 nonce = 0;
 
-            // 使用不同的 issuer 私钥签名
             uint256 issuerPrivKey = i + 100;
-            address issuerOwner = vm.addr(issuerPrivKey);
-
-            // 将 issuer 所有权转移给 issuerOwner
-            vm.prank(address(issuers[i]));
-            // ClaimIssuer 没有 transferOwnership,所以我们直接用当前 owner 签名
 
             bytes32 messageHash = issuers[i].getSignedClaim(address(identity), 1, data, expiresAt, nonce);
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(issuerPrivateKey, messageHash);
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(issuerPrivKey, messageHash);
             bytes memory signature = abi.encodePacked(r, s, v);
 
             vm.prank(investor);

@@ -285,7 +285,7 @@ contract DividendDistributorInvariantTest is Test {
 
         // HIGH-2 修复: 添加受信任的签发者
         vm.prank(investor);
-        identity.addTrustedIssuer(address(_claimIssuer));
+        identity.authorizeClaimIssuer(address(_claimIssuer));
 
         vm.prank(investor);
         identity.addClaim(1, 1, address(_claimIssuer), signature, data, "", expiresAt, nonce);

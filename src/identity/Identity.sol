@@ -66,15 +66,8 @@ contract Identity {
         // Use the same identity-scoped claim id semantics as ClaimIssuer.
         claimId = ClaimIssuer(_issuer).getClaimId(address(this), _topic, _data, _expiresAt, _nonce);
 
-        // DoS 防护: 检查是否是新 claim
-        bool isNewClaim = claims[claimId].issuer == address(0);
-
-        // 如果是新 claim,检查 topic 的 claim 数量限制
-        if (isNewClaim) {
-            require(claimCountByTopic[_topic] < MAX_CLAIMS_PER_TOPIC, "Identity: too many claims for this topic");
-        }
-
         require(claims[claimId].issuer == address(0), "Identity: claim exists");
+        require(claimCountByTopic[_topic] < MAX_CLAIMS_PER_TOPIC, "Identity: too many claims for this topic");
 
         // Strict validation: the trusted issuer must recognize the claim as valid
         // for this identity before it can be stored.
@@ -142,18 +135,11 @@ contract Identity {
         return claimsByTopic[_topic];
     }
 
-    function isClaimValid(bytes32 _claimId) public view returns (bool) {
-        Claim memory claim = claims[_claimId];
-        if (claim.issuer == address(0)) return false;
-        if (claim.expiresAt > 0 && claim.expiresAt < block.timestamp) return false;
-        return true;
-    }
-
     /**
      * @notice 添加受信任的 claim 签发者
      * @param _issuer 签发者地址
      */
-    function addTrustedIssuer(address _issuer) external onlyOwner {
+    function authorizeClaimIssuer(address _issuer) external onlyOwner {
         require(_issuer != address(0), "Identity: invalid issuer");
         require(!trustedIssuers[_issuer], "Identity: issuer already trusted");
         trustedIssuers[_issuer] = true;
@@ -164,7 +150,7 @@ contract Identity {
      * @notice 移除受信任的 claim 签发者
      * @param _issuer 签发者地址
      */
-    function removeTrustedIssuer(address _issuer) external onlyOwner {
+    function revokeClaimIssuerAuthorization(address _issuer) external onlyOwner {
         require(trustedIssuers[_issuer], "Identity: issuer not trusted");
         trustedIssuers[_issuer] = false;
         emit TrustedIssuerRemoved(_issuer);
@@ -174,7 +160,7 @@ contract Identity {
      * @notice 检查签发者是否受信任
      * @param _issuer 签发者地址
      */
-    function isTrustedIssuer(address _issuer) external view returns (bool) {
+    function isAuthorizedClaimIssuer(address _issuer) external view returns (bool) {
         return trustedIssuers[_issuer];
     }
 }

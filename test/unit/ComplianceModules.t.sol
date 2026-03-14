@@ -258,7 +258,7 @@ contract ComplianceModulesTest is Test {
 
         // HIGH-2 修复: 添加受信任的签发者
         vm.prank(investor);
-        identity.addTrustedIssuer(address(claimIssuer));
+        identity.authorizeClaimIssuer(address(claimIssuer));
 
         vm.prank(investor);
         identity.addClaim(1, 1, address(claimIssuer), signature, data, "", expiresAt, nonce);

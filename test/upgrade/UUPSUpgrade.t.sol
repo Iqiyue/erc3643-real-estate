@@ -371,7 +371,7 @@ contract UUPSUpgradeTest is Test {
         Identity identity = new Identity(investor);
 
         vm.prank(investor);
-        identity.addTrustedIssuer(address(claimIssuer));
+        identity.authorizeClaimIssuer(address(claimIssuer));
 
         bytes memory data = abi.encodePacked("KYC_VERIFIED");
         uint256 expiresAt = block.timestamp + 365 days;
