@@ -64,7 +64,6 @@ contract IdentityRegistry is Ownable {
                     identityContract.getClaimWithNonce(claimIds[j]);
 
                 if (!trustedIssuers[issuer]) continue;
-                if (expiresAt > 0 && expiresAt < block.timestamp) continue;
 
                 ClaimIssuer issuerContract = ClaimIssuer(issuer);
                 if (issuerContract.isClaimValid(identityAddr, topic, data, signature, expiresAt, nonce)) {
