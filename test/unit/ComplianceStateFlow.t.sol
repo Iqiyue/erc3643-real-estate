@@ -12,6 +12,8 @@ import "../../src/token/RealEstateToken.sol";
 // forge-lint: disable-next-line(unaliased-plain-import)
 import "../../src/identity/Identity.sol";
 // forge-lint: disable-next-line(unaliased-plain-import)
+import "../../src/identity/IdentityFactory.sol";
+// forge-lint: disable-next-line(unaliased-plain-import)
 import "../../src/identity/ClaimIssuer.sol";
 // forge-lint: disable-next-line(unaliased-plain-import)
 import "../../src/identity/IdentityRegistryStorage.sol";
@@ -22,6 +24,7 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract ComplianceStateFlowTest is Test {
     ClaimIssuer public claimIssuer;
+    IdentityFactory public identityFactory;
     IdentityRegistryStorage public identityStorage;
     IdentityRegistry public identityRegistry;
     ModularCompliance public compliance;
@@ -40,6 +43,8 @@ contract ComplianceStateFlowTest is Test {
 
         vm.prank(issuerOwner);
         claimIssuer = new ClaimIssuer();
+        Identity identityImplementation = new Identity(address(0));
+        identityFactory = new IdentityFactory(address(identityImplementation));
         identityStorage = new IdentityRegistryStorage();
 
         address[] memory trustedIssuers = new address[](1);
@@ -102,11 +107,12 @@ contract ComplianceStateFlowTest is Test {
     }
 
     function _registerInvestor(address investor) internal {
-        Identity identity = new Identity(investor);
+        address identityAddr = identityFactory.createIdentity(investor);
+        Identity identity = Identity(identityAddr);
         bytes memory data = abi.encodePacked("KYC_VERIFIED");
         uint256 expiresAt = block.timestamp + 365 days;
         uint256 nonce = 0;
-        bytes32 messageHash = claimIssuer.getSignedClaim(address(identity), 1, data, expiresAt, nonce);
+        bytes32 messageHash = claimIssuer.getSignedClaim(identityAddr, 1, data, expiresAt, nonce);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(issuerPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -117,6 +123,6 @@ contract ComplianceStateFlowTest is Test {
 
         vm.prank(investor);
         identity.addClaim(1, 1, address(claimIssuer), signature, data, "", expiresAt, nonce);
-        identityRegistry.registerIdentity(investor, address(identity), 840);
+        identityRegistry.registerIdentity(investor, identityAddr, 840);
     }
 }

@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 import "../../src/identity/Identity.sol";
+import "../../src/identity/IdentityFactory.sol";
 import "../../src/identity/ClaimIssuer.sol";
 import "../../src/identity/IdentityRegistryStorage.sol";
 import "../../src/identity/IdentityRegistry.sol";
@@ -17,6 +18,7 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
  */
 contract ReentrancyAttackTest is Test {
     ClaimIssuer public claimIssuer;
+    IdentityFactory public identityFactory;
     IdentityRegistryStorage public identityStorage;
     IdentityRegistry public identityRegistry;
     ModularCompliance public compliance;
@@ -38,6 +40,8 @@ contract ReentrancyAttackTest is Test {
         // 部署合约
         vm.prank(issuerOwner);
         claimIssuer = new ClaimIssuer();
+        Identity identityImplementation = new Identity(address(0));
+        identityFactory = new IdentityFactory(address(identityImplementation));
         identityStorage = new IdentityRegistryStorage();
 
         address[] memory trustedIssuers = new address[](1);
@@ -111,8 +115,8 @@ contract ReentrancyAttackTest is Test {
     }
 
     function _registerInvestor(address investor, uint16 country) internal {
-        vm.prank(investor);
-        Identity identity = new Identity(investor);
+        address identityAddr = identityFactory.createIdentity(investor);
+        Identity identity = Identity(identityAddr);
 
         vm.prank(investor);
         identity.authorizeClaimIssuer(address(claimIssuer));
@@ -120,7 +124,7 @@ contract ReentrancyAttackTest is Test {
         bytes memory data = abi.encodePacked("KYC_VERIFIED");
         uint256 expiresAt = block.timestamp + 365 days;
         uint256 nonce = 0;
-        bytes32 messageHash = claimIssuer.getSignedClaim(address(identity), 1, data, expiresAt, nonce);
+        bytes32 messageHash = claimIssuer.getSignedClaim(identityAddr, 1, data, expiresAt, nonce);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(issuerPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -128,7 +132,7 @@ contract ReentrancyAttackTest is Test {
         vm.prank(investor);
         identity.addClaim(1, 1, address(claimIssuer), signature, data, "", expiresAt, nonce);
 
-        identityRegistry.registerIdentity(investor, address(identity), country);
+        identityRegistry.registerIdentity(investor, identityAddr, country);
     }
 }
 
@@ -270,6 +274,7 @@ contract AccessControlAttackTest is Test {
  */
 contract FrontRunningAttackTest is Test {
     ClaimIssuer public claimIssuer;
+    IdentityFactory public identityFactory;
     IdentityRegistryStorage public identityStorage;
     IdentityRegistry public identityRegistry;
     ModularCompliance public compliance;
@@ -291,6 +296,8 @@ contract FrontRunningAttackTest is Test {
 
         vm.prank(issuerOwner);
         claimIssuer = new ClaimIssuer();
+        Identity identityImplementation = new Identity(address(0));
+        identityFactory = new IdentityFactory(address(identityImplementation));
         identityStorage = new IdentityRegistryStorage();
 
         address[] memory trustedIssuers = new address[](1);
@@ -352,8 +359,8 @@ contract FrontRunningAttackTest is Test {
      * @dev 测试签名重放攻击防护
      */
     function testSignatureReplayAttack() public {
-        vm.prank(investor1);
-        Identity identity = new Identity(investor1);
+        address identityAddr = identityFactory.createIdentity(investor1);
+        Identity identity = Identity(identityAddr);
 
         vm.prank(investor1);
         identity.authorizeClaimIssuer(address(claimIssuer));
@@ -362,7 +369,7 @@ contract FrontRunningAttackTest is Test {
         uint256 expiresAt = block.timestamp + 365 days;
         uint256 nonce = 1; // 使用 nonce
 
-        bytes32 messageHash = claimIssuer.getSignedClaim(address(identity), 1, data, expiresAt, nonce);
+        bytes32 messageHash = claimIssuer.getSignedClaim(identityAddr, 1, data, expiresAt, nonce);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(issuerPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
 
@@ -371,15 +378,15 @@ contract FrontRunningAttackTest is Test {
         identity.addClaim(1, 1, address(claimIssuer), signature, data, "", expiresAt, nonce);
 
         // 标记 nonce 已使用
-        claimIssuer.markNonceUsed(address(identity), nonce);
+        claimIssuer.markNonceUsed(identityAddr, nonce);
 
         // 尝试重放相同的签名 (应该失败)
-        assertFalse(claimIssuer.isClaimValid(address(identity), 1, data, signature, expiresAt, nonce));
+        assertFalse(claimIssuer.isClaimValid(identityAddr, 1, data, signature, expiresAt, nonce));
     }
 
     function _registerInvestor(address investor, uint16 country) internal {
-        vm.prank(investor);
-        Identity identity = new Identity(investor);
+        address identityAddr = identityFactory.createIdentity(investor);
+        Identity identity = Identity(identityAddr);
 
         vm.prank(investor);
         identity.authorizeClaimIssuer(address(claimIssuer));
@@ -387,7 +394,7 @@ contract FrontRunningAttackTest is Test {
         bytes memory data = abi.encodePacked("KYC_VERIFIED");
         uint256 expiresAt = block.timestamp + 365 days;
         uint256 nonce = 0;
-        bytes32 messageHash = claimIssuer.getSignedClaim(address(identity), 1, data, expiresAt, nonce);
+        bytes32 messageHash = claimIssuer.getSignedClaim(identityAddr, 1, data, expiresAt, nonce);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(issuerPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -395,7 +402,7 @@ contract FrontRunningAttackTest is Test {
         vm.prank(investor);
         identity.addClaim(1, 1, address(claimIssuer), signature, data, "", expiresAt, nonce);
 
-        identityRegistry.registerIdentity(investor, address(identity), country);
+        identityRegistry.registerIdentity(investor, identityAddr, country);
     }
 }
 
@@ -405,6 +412,7 @@ contract FrontRunningAttackTest is Test {
  */
 contract DoSAttackTest is Test {
     ClaimIssuer public claimIssuer;
+    IdentityFactory public identityFactory;
     IdentityRegistryStorage public identityStorage;
     IdentityRegistry public identityRegistry;
     ModularCompliance public compliance;
@@ -422,6 +430,8 @@ contract DoSAttackTest is Test {
 
         vm.prank(issuerOwner);
         claimIssuer = new ClaimIssuer();
+        Identity identityImplementation = new Identity(address(0));
+        identityFactory = new IdentityFactory(address(identityImplementation));
         identityStorage = new IdentityRegistryStorage();
 
         address[] memory trustedIssuers = new address[](1);
@@ -479,9 +489,8 @@ contract DoSAttackTest is Test {
      */
     function testIdentityClaimsLimit() public {
         address investor = makeAddr("investor");
-
-        vm.prank(investor);
-        Identity identity = new Identity(investor);
+        address identityAddr = identityFactory.createIdentity(investor);
+        Identity identity = Identity(identityAddr);
 
         // 创建多个 claim issuers 以测试 claims 数量限制
         // 当前 claimId 包含 issuer/topic/data/expiresAt/nonce,不同 claim 会独立计数
@@ -504,7 +513,7 @@ contract DoSAttackTest is Test {
 
             uint256 issuerPrivKey = i + 100;
 
-            bytes32 messageHash = issuers[i].getSignedClaim(address(identity), 1, data, expiresAt, nonce);
+            bytes32 messageHash = issuers[i].getSignedClaim(identityAddr, 1, data, expiresAt, nonce);
             (uint8 v, bytes32 r, bytes32 s) = vm.sign(issuerPrivKey, messageHash);
             bytes memory signature = abi.encodePacked(r, s, v);
 

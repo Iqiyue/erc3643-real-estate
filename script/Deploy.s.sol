@@ -6,6 +6,8 @@ import "forge-std/Script.sol";
 // forge-lint: disable-next-line(unaliased-plain-import)
 import "../src/identity/Identity.sol";
 // forge-lint: disable-next-line(unaliased-plain-import)
+import "../src/identity/IdentityFactory.sol";
+// forge-lint: disable-next-line(unaliased-plain-import)
 import "../src/identity/ClaimIssuer.sol";
 // forge-lint: disable-next-line(unaliased-plain-import)
 import "../src/identity/IdentityRegistryStorage.sol";
@@ -27,11 +29,17 @@ contract DeployScript is Script {
         ClaimIssuer claimIssuer = new ClaimIssuer();
         console.log("ClaimIssuer deployed at:", address(claimIssuer));
 
-        // 2. 部署 IdentityRegistryStorage
+        // 2. 部署 Identity implementation 和 Factory
+        Identity identityImplementation = new Identity(address(0));
+        IdentityFactory identityFactory = new IdentityFactory(address(identityImplementation));
+        console.log("Identity implementation deployed at:", address(identityImplementation));
+        console.log("IdentityFactory deployed at:", address(identityFactory));
+
+        // 3. 部署 IdentityRegistryStorage
         IdentityRegistryStorage identityStorage = new IdentityRegistryStorage();
         console.log("IdentityRegistryStorage deployed at:", address(identityStorage));
 
-        // 3. 部署 IdentityRegistry
+        // 4. 部署 IdentityRegistry
         address[] memory trustedIssuers = new address[](1);
         trustedIssuers[0] = address(claimIssuer);
 
@@ -48,11 +56,11 @@ contract DeployScript is Script {
         // 绑定 IdentityRegistry 到 Storage
         identityStorage.bindIdentityRegistry(address(identityRegistry));
 
-        // 4. 部署 ModularCompliance
+        // 5. 部署 ModularCompliance
         ModularCompliance compliance = new ModularCompliance();
         console.log("ModularCompliance deployed at:", address(compliance));
 
-        // 5. 部署 RealEstateToken (UUPS 代理模式)
+        // 6. 部署 RealEstateToken (UUPS 代理模式)
         RealEstateToken tokenImplementation = new RealEstateToken();
         console.log("RealEstateToken implementation deployed at:", address(tokenImplementation));
 
@@ -74,6 +82,8 @@ contract DeployScript is Script {
 
         console.log("\n=== Deployment Summary ===");
         console.log("ClaimIssuer:", address(claimIssuer));
+        console.log("Identity implementation:", address(identityImplementation));
+        console.log("IdentityFactory:", address(identityFactory));
         console.log("IdentityRegistryStorage:", address(identityStorage));
         console.log("IdentityRegistry:", address(identityRegistry));
         console.log("ModularCompliance:", address(compliance));

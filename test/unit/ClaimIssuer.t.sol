@@ -7,9 +7,12 @@ import "forge-std/Test.sol";
 import "../../src/identity/ClaimIssuer.sol";
 // forge-lint: disable-next-line(unaliased-plain-import)
 import "../../src/identity/Identity.sol";
+// forge-lint: disable-next-line(unaliased-plain-import)
+import "../../src/identity/IdentityFactory.sol";
 
 contract ClaimIssuerTest is Test {
     ClaimIssuer public claimIssuer;
+    IdentityFactory public identityFactory;
 
     address public issuerOwner;
     uint256 public issuerPrivateKey = 1;
@@ -23,11 +26,13 @@ contract ClaimIssuerTest is Test {
 
         vm.prank(issuerOwner);
         claimIssuer = new ClaimIssuer();
+        Identity implementation = new Identity(address(0));
+        identityFactory = new IdentityFactory(address(implementation));
     }
 
     function testRevokeSpecificClaimDoesNotAffectOtherIdentitySameTopic() public {
-        Identity identity1 = new Identity(investor1);
-        Identity identity2 = new Identity(investor2);
+        Identity identity1 = Identity(identityFactory.createIdentity(investor1));
+        Identity identity2 = Identity(identityFactory.createIdentity(investor2));
 
         bytes memory data1 = abi.encodePacked("KYC_VERIFIED_INVESTOR_1");
         bytes memory data2 = abi.encodePacked("KYC_VERIFIED_INVESTOR_2");
@@ -49,7 +54,7 @@ contract ClaimIssuerTest is Test {
     }
 
     function testRestoreRevokedClaim() public {
-        Identity identity = new Identity(investor1);
+        Identity identity = Identity(identityFactory.createIdentity(investor1));
         bytes memory data = abi.encodePacked("KYC_VERIFIED");
         uint256 expiresAt = block.timestamp + 365 days;
         bytes memory sig = _sign(identity, 1, data, expiresAt, 7);
@@ -68,7 +73,7 @@ contract ClaimIssuerTest is Test {
     function testExpiredClaimShouldBeRejectedByRegistryLogic() public {
         // ClaimIssuer validates signature + revocation only.
         // Expiry enforcement is performed by IdentityRegistry.
-        Identity identity = new Identity(investor1);
+        Identity identity = Identity(identityFactory.createIdentity(investor1));
         bytes memory data = abi.encodePacked("KYC_EXPIRED");
         uint256 expiresAt = block.timestamp + 365 days;
         uint256 nonce = 3;

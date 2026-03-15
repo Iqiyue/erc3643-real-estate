@@ -6,6 +6,8 @@ import "forge-std/Script.sol";
 // forge-lint: disable-next-line(unaliased-plain-import)
 import "../src/identity/Identity.sol";
 // forge-lint: disable-next-line(unaliased-plain-import)
+import "../src/identity/IdentityFactory.sol";
+// forge-lint: disable-next-line(unaliased-plain-import)
 import "../src/identity/ClaimIssuer.sol";
 // forge-lint: disable-next-line(unaliased-plain-import)
 import "../src/identity/IdentityRegistryStorage.sol";
@@ -30,6 +32,8 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract DeployFullSystem is Script {
     struct Deployment {
+        Identity identityImplementation;
+        IdentityFactory identityFactory;
         ClaimIssuer claimIssuer;
         IdentityRegistryStorage identityStorage;
         IdentityRegistry identityRegistry;
@@ -78,6 +82,8 @@ contract DeployFullSystem is Script {
     function _deployIdentity() internal {
         console.log("\n[1/6] Deploying Identity Infrastructure...");
 
+        d.identityImplementation = new Identity(address(0));
+        d.identityFactory = new IdentityFactory(address(d.identityImplementation));
         d.claimIssuer = new ClaimIssuer();
         d.identityStorage = new IdentityRegistryStorage();
 
@@ -94,6 +100,8 @@ contract DeployFullSystem is Script {
         );
 
         d.identityStorage.bindIdentityRegistry(address(d.identityRegistry));
+        console.log("  Identity (Implementation):", address(d.identityImplementation));
+        console.log("  IdentityFactory:", address(d.identityFactory));
         console.log("  ClaimIssuer:", address(d.claimIssuer));
         console.log("  IdentityRegistryStorage:", address(d.identityStorage));
         console.log("  IdentityRegistry:", address(d.identityRegistry));
@@ -181,6 +189,8 @@ contract DeployFullSystem is Script {
     function _printSummary() internal view {
         console.log("\n=== Deployment Summary ===");
         console.log("\n[Identity System]");
+        console.log("Identity (Implementation): ", address(d.identityImplementation));
+        console.log("IdentityFactory:           ", address(d.identityFactory));
         console.log("ClaimIssuer:              ", address(d.claimIssuer));
         console.log("IdentityRegistryStorage:  ", address(d.identityStorage));
         console.log("IdentityRegistry:         ", address(d.identityRegistry));

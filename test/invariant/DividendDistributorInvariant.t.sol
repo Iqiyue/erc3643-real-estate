@@ -10,6 +10,8 @@ import "../../src/token/RealEstateToken.sol";
 // forge-lint: disable-next-line(unaliased-plain-import)
 import "../../src/identity/Identity.sol";
 // forge-lint: disable-next-line(unaliased-plain-import)
+import "../../src/identity/IdentityFactory.sol";
+// forge-lint: disable-next-line(unaliased-plain-import)
 import "../../src/identity/ClaimIssuer.sol";
 // forge-lint: disable-next-line(unaliased-plain-import)
 import "../../src/identity/IdentityRegistryStorage.sol";
@@ -76,12 +78,15 @@ contract DividendDistributorInvariantTest is Test {
     address public issuerOwner;
     uint256 public issuerPrivateKey = 1;
     ClaimIssuer public claimIssuer;
+    IdentityFactory public identityFactory;
 
     function setUp() public {
         // 部署身份系统
         issuerOwner = vm.addr(issuerPrivateKey);
         vm.prank(issuerOwner);
         claimIssuer = new ClaimIssuer();
+        Identity identityImplementation = new Identity(address(0));
+        identityFactory = new IdentityFactory(address(identityImplementation));
         IdentityRegistryStorage identityStorage = new IdentityRegistryStorage();
 
         address[] memory trustedIssuers = new address[](1);
@@ -273,12 +278,13 @@ contract DividendDistributorInvariantTest is Test {
         IdentityRegistry identityRegistry,
         ClaimIssuer _claimIssuer
     ) internal {
-        Identity identity = new Identity(investor);
+        address identityAddr = identityFactory.createIdentity(investor);
+        Identity identity = Identity(identityAddr);
 
         bytes memory data = abi.encodePacked("KYC_VERIFIED");
         uint256 expiresAt = block.timestamp + 365 days;
         uint256 nonce = 0;
-        bytes32 messageHash = _claimIssuer.getSignedClaim(address(identity), 1, data, expiresAt, nonce);
+        bytes32 messageHash = _claimIssuer.getSignedClaim(identityAddr, 1, data, expiresAt, nonce);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(issuerPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -290,6 +296,6 @@ contract DividendDistributorInvariantTest is Test {
         vm.prank(investor);
         identity.addClaim(1, 1, address(_claimIssuer), signature, data, "", expiresAt, nonce);
 
-        identityRegistry.registerIdentity(investor, address(identity), 840);
+        identityRegistry.registerIdentity(investor, identityAddr, 840);
     }
 }

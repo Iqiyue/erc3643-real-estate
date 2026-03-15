@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "forge-std/Test.sol";
 import "../../src/identity/Identity.sol";
+import "../../src/identity/IdentityFactory.sol";
 import "../../src/identity/ClaimIssuer.sol";
 import "../../src/identity/IdentityRegistryStorage.sol";
 import "../../src/identity/IdentityRegistry.sol";
@@ -39,6 +40,7 @@ contract RealEstateTokenV2 is RealEstateToken {
  */
 contract UUPSUpgradeTest is Test {
     ClaimIssuer public claimIssuer;
+    IdentityFactory public identityFactory;
     IdentityRegistryStorage public identityStorage;
     IdentityRegistry public identityRegistry;
     ModularCompliance public compliance;
@@ -60,6 +62,8 @@ contract UUPSUpgradeTest is Test {
         // 部署 V1
         vm.prank(issuerOwner);
         claimIssuer = new ClaimIssuer();
+        Identity identityImplementation = new Identity(address(0));
+        identityFactory = new IdentityFactory(address(identityImplementation));
         identityStorage = new IdentityRegistryStorage();
 
         address[] memory trustedIssuers = new address[](1);
@@ -367,8 +371,8 @@ contract UUPSUpgradeTest is Test {
      * @dev 辅助函数: 注册投资者
      */
     function _registerInvestor(address investor, uint16 country) internal {
-        vm.prank(investor);
-        Identity identity = new Identity(investor);
+        address identityAddr = identityFactory.createIdentity(investor);
+        Identity identity = Identity(identityAddr);
 
         vm.prank(investor);
         identity.authorizeClaimIssuer(address(claimIssuer));
@@ -376,7 +380,7 @@ contract UUPSUpgradeTest is Test {
         bytes memory data = abi.encodePacked("KYC_VERIFIED");
         uint256 expiresAt = block.timestamp + 365 days;
         uint256 nonce = 0;
-        bytes32 messageHash = claimIssuer.getSignedClaim(address(identity), 1, data, expiresAt, nonce);
+        bytes32 messageHash = claimIssuer.getSignedClaim(identityAddr, 1, data, expiresAt, nonce);
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(issuerPrivateKey, messageHash);
         bytes memory signature = abi.encodePacked(r, s, v);
@@ -384,7 +388,7 @@ contract UUPSUpgradeTest is Test {
         vm.prank(investor);
         identity.addClaim(1, 1, address(claimIssuer), signature, data, "", expiresAt, nonce);
 
-        identityRegistry.registerIdentity(investor, address(identity), country);
+        identityRegistry.registerIdentity(investor, identityAddr, country);
     }
 }
 

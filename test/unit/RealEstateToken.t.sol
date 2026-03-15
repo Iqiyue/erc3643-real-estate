@@ -6,6 +6,8 @@ import "forge-std/Test.sol";
 // forge-lint: disable-next-line(unaliased-plain-import)
 import "../../src/identity/Identity.sol";
 // forge-lint: disable-next-line(unaliased-plain-import)
+import "../../src/identity/IdentityFactory.sol";
+// forge-lint: disable-next-line(unaliased-plain-import)
 import "../../src/identity/ClaimIssuer.sol";
 // forge-lint: disable-next-line(unaliased-plain-import)
 import "../../src/identity/IdentityRegistryStorage.sol";
@@ -20,6 +22,7 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract RealEstateTokenTest is Test {
     ClaimIssuer public claimIssuer;
+    IdentityFactory public identityFactory;
     IdentityRegistryStorage public identityStorage;
     IdentityRegistry public identityRegistry;
     ModularCompliance public compliance;
@@ -42,6 +45,8 @@ contract RealEstateTokenTest is Test {
         // 部署合约
         vm.prank(issuerOwner);
         claimIssuer = new ClaimIssuer();
+        Identity identityImplementation = new Identity(address(0));
+        identityFactory = new IdentityFactory(address(identityImplementation));
         identityStorage = new IdentityRegistryStorage();
 
         address[] memory trustedIssuers = new address[](1);
@@ -84,7 +89,7 @@ contract RealEstateTokenTest is Test {
 
     function testRegisterIdentity() public {
         // 创建投资者身份
-        Identity identity1 = new Identity(investor1);
+        Identity identity1 = Identity(identityFactory.createIdentity(investor1));
 
         // 签发 KYC 声明
         bytes memory data = abi.encodePacked("KYC_VERIFIED");
@@ -283,8 +288,8 @@ contract RealEstateTokenTest is Test {
         countries[0] = 840;
         countries[1] = 840;
 
-        Identity identity1 = new Identity(investor1);
-        Identity identity2 = new Identity(investor2);
+        Identity identity1 = Identity(identityFactory.createIdentity(investor1));
+        Identity identity2 = Identity(identityFactory.createIdentity(investor2));
         identities[0] = address(identity1);
         identities[1] = address(identity2);
 
@@ -309,8 +314,8 @@ contract RealEstateTokenTest is Test {
         countries[0] = 840;
         countries[1] = 840;
 
-        Identity identity1 = new Identity(investor1);
-        Identity identity2 = new Identity(investor2);
+        Identity identity1 = Identity(identityFactory.createIdentity(investor1));
+        Identity identity2 = Identity(identityFactory.createIdentity(investor2));
         identities[0] = address(identity1);
         identities[1] = address(identity2);
 
@@ -342,7 +347,7 @@ contract RealEstateTokenTest is Test {
 
     // 辅助函数:注册投资者
     function _registerInvestor(address investor) internal {
-        Identity identity = new Identity(investor);
+        Identity identity = Identity(identityFactory.createIdentity(investor));
         _addKycClaim(identity, investor);
 
         identityRegistry.registerIdentity(investor, address(identity), 840);

@@ -24,6 +24,7 @@ contract Identity {
     mapping(bytes32 => Claim) private claims;
     mapping(uint256 => bytes32[]) private claimsByTopic;
     address public owner;
+    bool public initialized;
 
     // DoS 防护: 限制每个 topic 的最大 claims 数量
     uint256 public constant MAX_CLAIMS_PER_TOPIC = 10;
@@ -34,11 +35,17 @@ contract Identity {
 
     event ClaimAdded(bytes32 indexed claimId, uint256 indexed topic, uint256 scheme, address indexed issuer, bytes signature, bytes data, string uri, uint256 nonce);
     event ClaimRemoved(bytes32 indexed claimId, uint256 indexed topic, uint256 scheme, address indexed issuer);
+    event Initialized(address indexed owner);
     event TrustedIssuerAdded(address indexed issuer);
     event TrustedIssuerRemoved(address indexed issuer);
 
     modifier onlyOwner() {
         _onlyOwner();
+        _;
+    }
+
+    modifier onlyInitialized() {
+        require(initialized, "Identity: not initialized");
         _;
     }
 
@@ -48,6 +55,16 @@ contract Identity {
 
     constructor(address _owner) {
         owner = _owner;
+        initialized = true;
+        emit Initialized(_owner);
+    }
+
+    function initialize(address _owner) external {
+        require(!initialized, "Identity: already initialized");
+        require(_owner != address(0), "Identity: invalid owner");
+        owner = _owner;
+        initialized = true;
+        emit Initialized(_owner);
     }
 
     function addClaim(
@@ -59,7 +76,7 @@ contract Identity {
         string memory _uri,
         uint256 _expiresAt,
         uint256 _nonce
-    ) public onlyOwner returns (bytes32 claimId) {
+    ) public onlyOwner onlyInitialized returns (bytes32 claimId) {
         // HIGH-2 修复: 验证签发者是否受信任
         require(trustedIssuers[_issuer], "Identity: issuer not trusted");
 
@@ -104,7 +121,7 @@ contract Identity {
         emit ClaimAdded(claimId, _topic, _scheme, _issuer, _signature, _data, _uri, _nonce);
     }
 
-    function removeClaim(bytes32 _claimId) public onlyOwner returns (bool) {
+    function removeClaim(bytes32 _claimId) public onlyOwner onlyInitialized returns (bool) {
         Claim memory claim = claims[_claimId];
         require(claim.issuer != address(0), "Identity: claim does not exist");
 
@@ -139,7 +156,7 @@ contract Identity {
      * @notice 添加受信任的 claim 签发者
      * @param _issuer 签发者地址
      */
-    function authorizeClaimIssuer(address _issuer) external onlyOwner {
+    function authorizeClaimIssuer(address _issuer) external onlyOwner onlyInitialized {
         require(_issuer != address(0), "Identity: invalid issuer");
         require(!trustedIssuers[_issuer], "Identity: issuer already trusted");
         trustedIssuers[_issuer] = true;
@@ -150,7 +167,7 @@ contract Identity {
      * @notice 移除受信任的 claim 签发者
      * @param _issuer 签发者地址
      */
-    function revokeClaimIssuerAuthorization(address _issuer) external onlyOwner {
+    function revokeClaimIssuerAuthorization(address _issuer) external onlyOwner onlyInitialized {
         require(trustedIssuers[_issuer], "Identity: issuer not trusted");
         trustedIssuers[_issuer] = false;
         emit TrustedIssuerRemoved(_issuer);
