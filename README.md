@@ -16,9 +16,11 @@
 ## 🏗️ 项目架构
 
 ```
+foundry.toml
 src/
 ├── identity/              # 身份验证系统
 │   ├── Identity.sol       # 投资者身份合约 (ERC-734/735)
+│   ├── IdentityFactory.sol # Identity 最小代理工厂
 │   ├── ClaimIssuer.sol    # KYC/AML 声明签发者
 │   ├── IdentityRegistryStorage.sol  # 身份数据存储
 │   └── IdentityRegistry.sol         # 身份注册表
@@ -35,6 +37,18 @@ src/
 └── distribution/          # 分红系统
     ├── RealEstateDividendDistributor.sol  # 房产收益分红
     └── MerkleTreeDividendDistributor.sol  # Merkle Tree 分红
+
+script/
+├── Deploy.s.sol           # 简化部署脚本
+└── DeployFull.s.sol       # 完整系统部署脚本
+
+docs/
+├── architecture-analysis.md                # 项目整体架构分析
+├── identity-analysis.md                    # identity 目录专题分析
+├── identity-registry-analysis.md           # IdentityRegistry 专题分析
+├── identity-erc734-erc735-gap-analysis.md  # Identity 与 ERC-734/735 差异分析
+├── modular-compliance-analysis.md          # ModularCompliance 专题分析
+└── identity-clones-design.md               # Identity clones 改造设计
 
 test/
 ├── unit/                  # 单元测试
@@ -222,5 +236,3 @@ forge script script/DeployFull.s.sol \
 ## 🔍 使用建议
 
 本项目参考了真实生产环境中的核心业务逻辑，并做了脱敏和裁剪，用于展示合规证券型代币在身份、合规、治理和分红方面的关键设。
-
-
