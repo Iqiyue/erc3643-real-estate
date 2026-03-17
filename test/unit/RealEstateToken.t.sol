@@ -34,6 +34,8 @@ contract RealEstateTokenTest is Test {
     address public investor3;
     address public issuerOwner;
     uint256 public issuerPrivateKey = 1;
+    address public guardian;
+    address public rando;
 
     function setUp() public {
         owner = address(this);
@@ -41,6 +43,8 @@ contract RealEstateTokenTest is Test {
         investor2 = makeAddr("investor2");
         investor3 = makeAddr("investor3");
         issuerOwner = vm.addr(issuerPrivateKey);
+        guardian = makeAddr("guardian");
+        rando = makeAddr("rando");
 
         // 部署合约
         vm.prank(issuerOwner);
@@ -201,6 +205,68 @@ contract RealEstateTokenTest is Test {
         assertTrue(token.transfer(investor2, 500 ether));
 
         assertEq(token.balanceOf(investor2), 500 ether);
+    }
+
+    function testAutoUnpauseCannotBypassOwnerPause() public {
+        // Formal pause by owner must not be auto-unpaused by the public.
+        token.pause();
+        assertTrue(token.paused());
+
+        vm.warp(block.timestamp + token.EMERGENCY_PAUSE_DURATION() + 1);
+        vm.prank(rando);
+        vm.expectRevert();
+        token.autoUnpause();
+
+        assertTrue(token.paused());
+    }
+
+    function testAutoUnpauseAfterGuardianEmergencyPause() public {
+        token.setGuardian(guardian);
+
+        // Guardian emergency pause has a cooldown guard; the first call requires time > cooldown since 0.
+        vm.warp(block.timestamp + token.EMERGENCY_PAUSE_COOLDOWN() + 1);
+        vm.prank(guardian);
+        token.emergencyPause();
+        assertTrue(token.paused());
+        assertGt(token.emergencyPauseUntil(), 0);
+
+        // Still active right before expiry.
+        vm.warp(block.timestamp + token.EMERGENCY_PAUSE_DURATION());
+        vm.prank(rando);
+        vm.expectRevert();
+        token.autoUnpause();
+
+        // One second after expiry, anyone can auto-unpause.
+        vm.warp(block.timestamp + 1);
+        vm.prank(rando);
+        token.autoUnpause();
+
+        assertFalse(token.paused());
+        assertEq(token.emergencyPauseUntil(), 0);
+    }
+
+    function testOwnerUnpauseClearsEmergencyDeadline() public {
+        token.setGuardian(guardian);
+
+        // Guardian emergency pause has a cooldown guard; the first call requires time > cooldown since 0.
+        vm.warp(block.timestamp + token.EMERGENCY_PAUSE_COOLDOWN() + 1);
+        vm.prank(guardian);
+        token.emergencyPause();
+        assertTrue(token.paused());
+        assertGt(token.emergencyPauseUntil(), 0);
+
+        // Owner unpauses early; should clear the emergency deadline.
+        token.unpause();
+        assertFalse(token.paused());
+        assertEq(token.emergencyPauseUntil(), 0);
+
+        // Later a formal pause should not be auto-unpaused by anyone.
+        token.pause();
+        vm.warp(block.timestamp + token.EMERGENCY_PAUSE_DURATION() + 1);
+        vm.prank(rando);
+        vm.expectRevert();
+        token.autoUnpause();
+        assertTrue(token.paused());
     }
 
     function testForcedTransferByAgent() public {

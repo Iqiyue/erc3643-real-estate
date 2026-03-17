@@ -44,6 +44,9 @@ contract RealEstateToken is ERC20Upgradeable, OwnableUpgradeable, PausableUpgrad
     uint256 public lastEmergencyPauseTime;
     uint256 public constant EMERGENCY_PAUSE_COOLDOWN = 24 hours;
     uint256 public constant EMERGENCY_PAUSE_DURATION = 24 hours;
+    // Emergency pause auto-recovery deadline. Only set by `emergencyPause()`.
+    // Formal `pause()` must not be auto-unpaused by the public.
+    uint256 public emergencyPauseUntil;
 
     // MEDIUM-5 修复: Mint 抢跑攻击防护
     mapping(address => uint256) public lastMintTime;
@@ -332,6 +335,8 @@ contract RealEstateToken is ERC20Upgradeable, OwnableUpgradeable, PausableUpgrad
             lastEmergencyPauseTime = block.timestamp;
         }
 
+        // Mark as an emergency pause, eligible for `autoUnpause()` after a fixed duration.
+        emergencyPauseUntil = block.timestamp + EMERGENCY_PAUSE_DURATION;
         _pause();
     }
 
@@ -341,11 +346,10 @@ contract RealEstateToken is ERC20Upgradeable, OwnableUpgradeable, PausableUpgrad
      */
     function autoUnpause() external {
         require(paused(), "Not paused");
-        require(
-            block.timestamp > lastEmergencyPauseTime + EMERGENCY_PAUSE_DURATION,
-            "Emergency pause still active"
-        );
+        require(emergencyPauseUntil != 0, "Not emergency paused");
+        require(block.timestamp > emergencyPauseUntil, "Emergency pause still active");
         _unpause();
+        emergencyPauseUntil = 0;
     }
 
     /**
@@ -368,11 +372,15 @@ contract RealEstateToken is ERC20Upgradeable, OwnableUpgradeable, PausableUpgrad
     }
 
     function pause() external onlyOwner {
+        // Ensure formal pause cannot be auto-unpaused due to a stale emergency pause deadline.
+        emergencyPauseUntil = 0;
         _pause();
     }
 
     function unpause() external onlyOwner {
         _unpause();
+        // If paused via `emergencyPause()`, clear the emergency deadline when owner explicitly unpauses.
+        emergencyPauseUntil = 0;
     }
 
     function getInvestors() external view returns (address[] memory) {
